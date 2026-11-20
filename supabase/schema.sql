@@ -61,6 +61,13 @@ alter table public.profiles enable row level security;
 alter table public.lessons enable row level security;
 alter table public.lesson_progress enable row level security;
 
+-- Least-privilege Data API grants. RLS policies below still control row access.
+revoke all on table public.profiles, public.lessons, public.lesson_progress from anon, authenticated;
+grant select on table public.lessons to anon, authenticated;
+grant select on table public.profiles to authenticated;
+grant select, insert, update on table public.lesson_progress to authenticated;
+grant insert, update, delete on table public.lessons to authenticated;
+
 drop policy if exists "profiles read self or admin" on public.profiles;
 create policy "profiles read self or admin" on public.profiles for select to authenticated
 using (id = (select auth.uid()) or private.is_admin());
