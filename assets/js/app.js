@@ -1,63 +1,244 @@
 (() => {
   const cfg = window.HUDDID_CONFIG || {};
   const ready = !!(cfg.supabaseUrl && cfg.supabaseAnonKey && !cfg.supabaseUrl.includes("YOUR-"));
-  let client = null;
-  if (ready && window.supabase?.createClient) client = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
-  const $ = (s) => document.querySelector(s);
-  const message = (text, error=false) => { const el=$("#message"); if(el){el.textContent=text;el.classList.remove("hidden","error");if(error)el.classList.add("error");} };
+  const client = ready && window.supabase?.createClient
+    ? window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey)
+    : null;
+  const $ = (selector) => document.querySelector(selector);
+  const escapeHTML = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[c]));
+  const message = (text, error = false) => {
+    const el = $("#message");
+    if (!el) return;
+    el.textContent = text;
+    el.classList.remove("hidden", "error");
+    if (error) el.classList.add("error");
+  };
+  const requireClient = () => {
+    if (!client) throw new Error("ระบบสมาชิกยังไม่ได้เชื่อมต่อ กรุณาตรวจสอบการตั้งค่า Supabase");
+  };
+
   window.HudDid = {
     configured: !!client,
-    async signUp(email,password,name){
-      if(!client) throw new Error("ระบบสมาชิกยังไม่ได้ตั้งค่า Supabase");
-      const {data,error}=await client.auth.signUp({email,password,options:{data:{display_name:name}}});
-      if(error) throw error; return data;
+    async signUp(email, password, name) {
+      requireClient();
+      const { data, error } = await client.auth.signUp({
+        email, password, options: { data: { display_name: name } }
+      });
+      if (error) throw error;
+      return data;
     },
-    async signIn(email,password){
-      if(!client) throw new Error("ระบบสมาชิกยังไม่ได้ตั้งค่า Supabase");
-      const {data,error}=await client.auth.signInWithPassword({email,password});
-      if(error) throw error; return data;
+    async signIn(email, password) {
+      requireClient();
+      const { data, error } = await client.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      return data;
     },
-    async signOut(){if(client) await client.auth.signOut();location.href="index.html";},
-    async currentUser(){if(!client)return null;const {data}=await client.auth.getUser();return data.user||null;},
-    async getLessons(){
-      if(!client)return [];
-      const {data,error}=await client.from("lessons").select("id,title,slug,level,summary,content,sort_order").eq("published",true).order("sort_order");
-      if(error)throw error;return data||[];
+    async signOut() {
+      if (client) {
+        const { error } = await client.auth.signOut();
+        if (error) throw error;
+      }
+      location.href = "index.html";
     },
-    async saveProgress(lessonId,completed=true){
-      if(!client)throw new Error("ระบบสมาชิกยังไม่ได้ตั้งค่า");
-      const user=await this.currentUser();if(!user)throw new Error("กรุณาเข้าสู่ระบบก่อนบันทึกความคืบหน้า");
-      const {error}=await client.from("lesson_progress").upsert({user_id:user.id,lesson_id:lessonId,completed,updated_at:new Date().toISOString()},{onConflict:"user_id,lesson_id"});
-      if(error)throw error;
+    async currentUser() {
+      if (!client) return null;
+      const { data, error } = await client.auth.getUser();
+      if (error) return null;
+      return data.user || null;
     },
-    async isAdmin(){
-      if(!client)return false;const user=await this.currentUser();if(!user)return false;
-      const {data,error}=await client.from("profiles").select("role").eq("id",user.id).maybeSingle();
-      return !error && data?.role==="admin";
+    async getLessons() {
+      requireClient();
+      const { data, error } = await client.from("lessons")
+        .select("id,title,slug,level,summary,content,sort_order")
+        .eq("published", true).order("sort_order");
+      if (error) throw error;
+      return data || [];
     },
-    async adminCreateLesson(lesson){
-      if(!client || !(await this.isAdmin()))throw new Error("ต้องใช้บัญชีผู้ดูแลระบบ");
-      const {data,error}=await client.from("lessons").insert(lesson).select().single();if(error)throw error;return data;
+    async getProgress() {
+      requireClient();
+      const user = await this.currentUser();
+      if (!user) throw new Error("กรุณาเข้าสู่ระบบ");
+      const { data, error } = await client.from("lesson_progress")
+        .select("lesson_id,completed,updated_at").eq("user_id", user.id);
+      if (error) throw error;
+      return data || [];
+    },
+    async saveProgress(lessonId, completed = true) {
+      requireClient();
+      const user = await this.currentUser();
+      if (!user) throw new Error("กรุณาเข้าสู่ระบบก่อนบันทึกความคืบหน้า");
+      const { error } = await client.from("lesson_progress").upsert({
+        user_id: user.id, lesson_id: lessonId, completed,
+        updated_at: new Date().toISOString()
+      }, { onConflict: "user_id,lesson_id" });
+      if (error) throw error;
+    },
+    async isAdmin() {
+      if (!client) return false;
+      const user = await this.currentUser();
+      if (!user) return false;
+      const { data, error } = await client.from("profiles")
+        .select("role").eq("id", user.id).maybeSingle();
+      return !error && data?.role === "admin";
+    },
+    async adminGetLessons() {
+      if (!(await this.isAdmin())) throw new Error("ต้องใช้บัญชีผู้ดูแลระบบ");
+      const { data, error } = await client.from("lessons")
+        .select("id,title,slug,level,summary,content,published,sort_order")
+        .order("sort_order");
+      if (error) throw error;
+      return data || [];
+    },
+    async adminSaveLesson(lesson, id = null) {
+      if (!(await this.isAdmin())) throw new Error("ต้องใช้บัญชีผู้ดูแลระบบ");
+      const query = id
+        ? client.from("lessons").update(lesson).eq("id", id)
+        : client.from("lessons").insert(lesson);
+      const { error } = await query;
+      if (error) throw error;
+    },
+    async adminDeleteLesson(id) {
+      if (!(await this.isAdmin())) throw new Error("ต้องใช้บัญชีผู้ดูแลระบบ");
+      const { error } = await client.from("lessons").delete().eq("id", id);
+      if (error) throw error;
     }
   };
-  document.addEventListener("DOMContentLoaded", async()=>{
-    const status=$("#backend-status");if(status)status.textContent=client?"ระบบสมาชิกเชื่อมต่อแล้ว":"โหมดตัวอย่าง: รอตั้งค่า Supabase";
-    const signup=$("#signup-form");if(signup)signup.addEventListener("submit",async e=>{e.preventDefault();try{await HudDid.signUp($("#email").value,$("#password").value,$("#name").value);message("สมัครสมาชิกเรียบร้อย หากเปิดยืนยันอีเมล โปรดตรวจกล่องจดหมาย");}catch(err){message(err.message,true);}});
-    const login=$("#login-form");if(login)login.addEventListener("submit",async e=>{e.preventDefault();try{await HudDid.signIn($("#email").value,$("#password").value);location.href="dashboard.html";}catch(err){message(err.message,true);}});
-    const logout=$("#logout");if(logout)logout.addEventListener("click",()=>HudDid.signOut());
-    const dashboard=$("#dashboard");if(dashboard){
-      const user=await HudDid.currentUser();if(!user){location.href="login.html";return;}
-      $("#welcome").textContent="ยินดีต้อนรับ "+(user.user_metadata?.display_name||user.email);
-      try{const lessons=await HudDid.getLessons();$("#lesson-count").textContent=lessons.length+" บทเรียน";}catch(e){message(e.message,true);}
-      if(await HudDid.isAdmin())$("#admin-link")?.classList.remove("hidden");
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    const status = $("#backend-status");
+    if (status) status.textContent = client ? "เชื่อมต่อระบบสมาชิกแล้ว" : "ยังไม่ได้เชื่อมต่อฐานข้อมูล";
+    
+    const signup = $("#signup-form");
+    signup?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const submit = signup.querySelector('[type="submit"]');
+      if (submit) submit.disabled = true;
+      try {
+        const data = await HudDid.signUp($("#email").value.trim(), $("#password").value, $("#name").value.trim());
+        message(data.session
+          ? "สมัครสมาชิกสำเร็จ กำลังเข้าสู่ห้องเรียน…"
+          : "สมัครสมาชิกแล้ว กรุณาตรวจอีเมลเพื่อยืนยันบัญชีก่อนเข้าสู่ระบบ");
+        if (data.session) location.href = "dashboard.html";
+      } catch (error) { message(error.message, true); }
+      finally { if (submit) submit.disabled = false; }
+    });
+
+    const login = $("#login-form");
+    login?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const submit = login.querySelector('[type="submit"]');
+      if (submit) submit.disabled = true;
+      try {
+        await HudDid.signIn($("#email").value.trim(), $("#password").value);
+        location.href = "dashboard.html";
+      } catch (error) { message(error.message, true); }
+      finally { if (submit) submit.disabled = false; }
+    });
+
+    $("#logout")?.addEventListener("click", async () => {
+      try { await HudDid.signOut(); } catch (error) { message(error.message, true); }
+    });
+
+    const dashboard = $("#dashboard");
+    if (dashboard) {
+      const user = await HudDid.currentUser();
+      if (!user) { location.href = "login.html"; return; }
+      const welcome = $("#welcome");
+      if (welcome) welcome.textContent = "ยินดีต้อนรับ " + (user.user_metadata?.display_name || user.email);
+      try {
+        const [lessons, progress] = await Promise.all([HudDid.getLessons(), HudDid.getProgress()]);
+        const completed = progress.filter((item) => item.completed).length;
+        const percent = lessons.length ? Math.round(completed / lessons.length * 100) : 0;
+        if ($("#lesson-count")) $("#lesson-count").textContent = lessons.length + " บทเรียน";
+        if ($("#progress-count")) $("#progress-count").textContent = completed + " / " + lessons.length + " บท";
+        if ($("#progress-percent")) $("#progress-percent").textContent = percent + "%";
+        if ($("#progress-bar")) $("#progress-bar").style.width = percent + "%";
+        if ($("#dashboard-lessons")) {
+          $("#dashboard-lessons").innerHTML = lessons.slice(0, 4).map((lesson, index) =>
+            '<a class="lesson-row" href="lesson.html?slug=' + encodeURIComponent(lesson.slug) + '">' +
+            '<span class="lesson-number">' + String(index + 1).padStart(2, "0") + '</span>' +
+            '<div class="grow"><h3>' + escapeHTML(lesson.title) + '</h3><p>' + escapeHTML(lesson.summary) + '</p></div>' +
+            '<span class="tag">เริ่มเรียน →</span></a>'
+          ).join("");
+        }
+      } catch (error) { message(error.message, true); }
+      if (await HudDid.isAdmin()) $("#admin-link")?.classList.remove("hidden");
     }
-    const admin=$("#admin-page");if(admin){
-      const user=await HudDid.currentUser();if(!user){location.href="login.html";return;}
-      if(!(await HudDid.isAdmin())){message("บัญชีนี้ไม่มีสิทธิ์ผู้ดูแลระบบ",true);return;}
-      $("#admin-form")?.addEventListener("submit",async e=>{e.preventDefault();try{
-        await HudDid.adminCreateLesson({title:$("#lesson-title").value,slug:$("#lesson-slug").value,level:$("#lesson-level").value,summary:$("#lesson-summary").value,content:$("#lesson-content").value,published:true,sort_order:Number($("#lesson-order").value||0)});
-        message("เพิ่มบทเรียนแล้ว");e.target.reset();
-      }catch(err){message(err.message,true);}});
+
+    const admin = $("#admin-page");
+    if (admin) {
+      const user = await HudDid.currentUser();
+      if (!user) { location.href = "login.html"; return; }
+      if (!(await HudDid.isAdmin())) { message("บัญชีนี้ไม่มีสิทธิ์ผู้ดูแลระบบ", true); return; }
+
+      const form = $("#admin-form");
+      const renderList = async () => {
+        const lessons = await HudDid.adminGetLessons();
+        const list = $("#admin-list");
+        if (!list) return;
+        list.innerHTML = lessons.map((lesson) =>
+          '<div class="lesson-row"><div class="grow"><h3>' + escapeHTML(lesson.title) +
+          '</h3><p>' + escapeHTML(lesson.level) + ' · ' + escapeHTML(lesson.slug) +
+          ' · ' + (lesson.published ? "เผยแพร่" : "ฉบับร่าง") + '</p></div>' +
+          '<button class="btn light" type="button" data-edit="' + lesson.id + '">แก้ไข</button>' +
+          '<button class="btn light" type="button" data-delete="' + lesson.id + '">ลบ</button></div>'
+        ).join("") || '<div class="notice">ยังไม่มีบทเรียน</div>';
+        list.dataset.lessons = JSON.stringify(lessons);
+      };
+
+      form?.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const submit = form.querySelector('[type="submit"]');
+        if (submit) submit.disabled = true;
+        try {
+          const lesson = {
+            title: $("#lesson-title").value.trim(),
+            slug: $("#lesson-slug").value.trim(),
+            level: $("#lesson-level").value,
+            summary: $("#lesson-summary").value.trim(),
+            content: $("#lesson-content").value.trim(),
+            published: $("#lesson-published").checked,
+            sort_order: Number($("#lesson-order").value || 0)
+          };
+          await HudDid.adminSaveLesson(lesson, $("#lesson-id").value || null);
+          message("บันทึกบทเรียนเรียบร้อย");
+          form.reset();
+          $("#lesson-id").value = "";
+          if ($("#admin-submit")) $("#admin-submit").textContent = "เพิ่มบทเรียน";
+          await renderList();
+        } catch (error) { message(error.message, true); }
+        finally { if (submit) submit.disabled = false; }
+      });
+
+      $("#admin-list")?.addEventListener("click", async (event) => {
+        const editId = event.target.closest("[data-edit]")?.dataset.edit;
+        const deleteId = event.target.closest("[data-delete]")?.dataset.delete;
+        try {
+          const lessons = JSON.parse($("#admin-list").dataset.lessons || "[]");
+          if (editId) {
+            const lesson = lessons.find((item) => item.id === editId);
+            if (!lesson) return;
+            $("#lesson-id").value = lesson.id;
+            $("#lesson-title").value = lesson.title;
+            $("#lesson-slug").value = lesson.slug;
+            $("#lesson-level").value = lesson.level;
+            $("#lesson-summary").value = lesson.summary;
+            $("#lesson-content").value = lesson.content;
+            $("#lesson-order").value = lesson.sort_order;
+            $("#lesson-published").checked = lesson.published;
+            $("#admin-submit").textContent = "บันทึกการแก้ไข";
+            form.scrollIntoView({ behavior: "smooth", block: "start" });
+          } else if (deleteId && confirm("ต้องการลบบทเรียนนี้ใช่หรือไม่?")) {
+            await HudDid.adminDeleteLesson(deleteId);
+            message("ลบบทเรียนเรียบร้อย");
+            await renderList();
+          }
+        } catch (error) { message(error.message, true); }
+      });
+
+      try { await renderList(); } catch (error) { message(error.message, true); }
     }
   });
 })();
