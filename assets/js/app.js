@@ -123,6 +123,13 @@
     const status = $("#backend-status");
     if (status) status.textContent = client ? "เชื่อมต่อระบบสมาชิกแล้ว" : "ยังไม่ได้เชื่อมต่อฐานข้อมูล";
     
+    document.addEventListener("input", (event) => {
+      const input = event.target;
+      if (!input.matches('input[type="password"], input[data-password-text="true"]')) return;
+      const warning = document.getElementById(input.id + "-language-warning");
+      if (warning) warning.classList.toggle("hidden", !/[\\u0E00-\\u0E7F]/.test(input.value));
+    });
+
     document.addEventListener("click", (event) => {
       const toggle = event.target.closest("[data-toggle-password]");
       if (!toggle) return;
