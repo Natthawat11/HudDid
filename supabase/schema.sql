@@ -67,7 +67,7 @@ using (id = (select auth.uid()) or private.is_admin());
 
 drop policy if exists "lessons read published" on public.lessons;
 create policy "lessons read published" on public.lessons for select
-using (published = true or public.is_admin());
+using (published = true or private.is_admin());
 
 drop policy if exists "admins manage lessons" on public.lessons;
 drop policy if exists "admins insert lessons" on public.lessons;
@@ -82,7 +82,7 @@ using (private.is_admin());
 
 drop policy if exists "students read own progress" on public.lesson_progress;
 create policy "students read own progress" on public.lesson_progress for select to authenticated
-using (user_id=(select auth.uid()) or public.is_admin());
+using (user_id=(select auth.uid()) or private.is_admin());
 
 drop policy if exists "students write own progress" on public.lesson_progress;
 create policy "students write own progress" on public.lesson_progress for insert to authenticated
