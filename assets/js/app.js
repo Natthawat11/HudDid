@@ -127,7 +127,7 @@
       const input = event.target;
       if (!input.matches('input[type="password"], input[data-password-text="true"]')) return;
       const warning = document.getElementById(input.id + "-language-warning");
-      if (warning) warning.classList.toggle("hidden", !/[\\u0E00-\\u0E7F]/.test(input.value));
+      if (warning) warning.classList.toggle("hidden", !/[\u0E00-\u0E7F]/.test(input.value));
     });
 
     document.addEventListener("click", (event) => {
