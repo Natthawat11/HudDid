@@ -43,11 +43,19 @@ $$;
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created after insert on auth.users
 for each row execute procedure public.handle_new_user();
+revoke all on function public.handle_new_user() from public, anon, authenticated;
 
--- SECURITY DEFINER helper avoids recursive RLS checks on the profiles table.
-create or replace function public.is_admin()
-returns boolean language sql stable security definer set search_path = public
-as $ select exists(select 1 from public.profiles where id = auth.uid() and role = 'admin') $;
+-- Keep the authorization helper outside the exposed API schema.
+create schema if not exists private;
+revoke all on schema private from public;
+grant usage on schema private to anon, authenticated;
+create or replace function private.is_admin()
+returns boolean language sql stable security definer set search_path = ''
+as $$
+  select exists(select 1 from public.profiles where id = (select auth.uid()) and role = 'admin')
+$$;
+revoke all on function private.is_admin() from public;
+grant execute on function private.is_admin() to anon, authenticated;
 
 alter table public.profiles enable row level security;
 alter table public.lessons enable row level security;
@@ -55,16 +63,22 @@ alter table public.lesson_progress enable row level security;
 
 drop policy if exists "profiles read self or admin" on public.profiles;
 create policy "profiles read self or admin" on public.profiles for select to authenticated
-using (id = (select auth.uid()) or public.is_admin());
+using (id = (select auth.uid()) or private.is_admin());
 
 drop policy if exists "lessons read published" on public.lessons;
 create policy "lessons read published" on public.lessons for select
 using (published = true or public.is_admin());
 
 drop policy if exists "admins manage lessons" on public.lessons;
-create policy "admins manage lessons" on public.lessons for all to authenticated
-using (public.is_admin())
-with check (public.is_admin());
+drop policy if exists "admins insert lessons" on public.lessons;
+drop policy if exists "admins update lessons" on public.lessons;
+drop policy if exists "admins delete lessons" on public.lessons;
+create policy "admins insert lessons" on public.lessons for insert to authenticated
+with check (private.is_admin());
+create policy "admins update lessons" on public.lessons for update to authenticated
+using (private.is_admin()) with check (private.is_admin());
+create policy "admins delete lessons" on public.lessons for delete to authenticated
+using (private.is_admin());
 
 drop policy if exists "students read own progress" on public.lesson_progress;
 create policy "students read own progress" on public.lesson_progress for select to authenticated
@@ -81,6 +95,8 @@ using (user_id=(select auth.uid())) with check (user_id=(select auth.uid()));
 -- Add first admin manually after signing up, replacing the email:
 -- update public.profiles set role='admin'
 -- where id=(select id from auth.users where email='YOUR_ADMIN_EMAIL');
+
+create index if not exists lesson_progress_lesson_id_idx on public.lesson_progress(lesson_id);
 
 -- Seed sample course outline. Add/edit full lesson content from admin dashboard.
 insert into public.lessons(title,slug,level,summary,content,published,sort_order) values
