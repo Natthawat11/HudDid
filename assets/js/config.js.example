@@ -1,6 +1,6 @@
-// คัดลอกไฟล์นี้เป็น config.js แล้วใส่ค่า Project URL และ anon/publishable key จาก Supabase
-// ห้ามใส่ service_role key หรือ secret key ในเว็บไซต์ฝั่งผู้ใช้เด็ดขาด
+// HUD-DID Supabase public client configuration.
+// This publishable key is designed for browser use; never place service_role/secret keys here.
 window.HUDDID_CONFIG = {
-  supabaseUrl: "https://YOUR-PROJECT.supabase.co",
-  supabaseAnonKey: "YOUR_SUPABASE_ANON_OR_PUBLISHABLE_KEY"
+  supabaseUrl: "https://fcbdtrwpyafzzrzjrrow.supabase.co",
+  supabaseAnonKey: "sb_publishable_E3htsD2XZmB_GV6PFPuhhA_c_bkRvPQ"
 };
