@@ -12,3 +12,8 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none;box-shadow:none}
 main{min-height:55vh}
 ::selection{background:#d9edb8;color:#17251f}
 @media(max-width:540px){.page-head{padding:38px 0 18px}.section-head{align-items:flex-start;flex-direction:column}.hero h1{font-size:clamp(2.45rem,12vw,3.5rem)}.lead{font-size:1rem}.nav-links{gap:8px}}
+
+.password-wrap{display:flex;align-items:stretch;gap:8px}
+.password-wrap input{min-width:0;flex:1}
+.password-toggle{border:1px solid #cbd6cb;border-radius:12px;padding:0 14px;background:#edf2e9;color:var(--green);font-weight:700;cursor:pointer}
+.field-help{color:var(--muted);font-size:.82rem;line-height:1.5}
