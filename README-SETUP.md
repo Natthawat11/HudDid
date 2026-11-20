@@ -1,41 +1,58 @@
 # HUD-DID v2 setup
 
-This redesign is being developed on branch `redesign/huddid-v2`. The original `main` branch remains untouched.
+The redesign is maintained on branch `redesign/huddid-v2`; the original `main` branch remains untouched.
 
 ## Stack
-- Static HTML, CSS and vanilla JavaScript (works with Vercel static hosting)
-- Supabase Auth for account registration/login
-- Supabase Postgres for lesson content, learner profiles and lesson progress
-- Row Level Security (RLS) so students can only access their own progress
+- Static HTML, CSS and vanilla JavaScript for Vercel
+- Supabase Auth for signup/login
+- Supabase Postgres for learner profiles, lessons and progress
+- Row Level Security (RLS) with student/admin permissions
 
-## 1. Create the database
-1. Create a Supabase project.
-2. Open SQL Editor and run `supabase/schema.sql`.
-3. In Authentication settings, choose whether email confirmation is required.
-4. Register your own account through `signup.html`.
-5. In SQL Editor, promote that account to admin by running the final commented UPDATE statement in `supabase/schema.sql`, replacing the email address with your own.
+## Supabase project
+The free-tier project has already been created and initialized:
+- Project: `hud-did`
+- Region: Singapore (`ap-southeast-1`)
+- Project URL: `https://fcbdtrwpyafzzrzjrrow.supabase.co`
+- Database: PostgreSQL 17
 
-## 2. Connect the website
-1. In Supabase project settings, copy the Project URL and anon/publishable key.
-2. Copy `assets/js/config.js.example` to `assets/js/config.js`.
-3. Put the Project URL and anon/publishable key in `config.js`.
-4. Never put a Supabase service_role/secret key in browser JavaScript.
-5. `config.js` is ignored by Git so it is not committed accidentally.
+The initial schema and 12 course-outline records have been applied. RLS is enabled on all three public tables. Security advisor returned no findings after hardening the admin helper. Do not run the schema again unless intentionally rebuilding/updating the database.
 
-## 3. Deploy preview
-Connect the GitHub repository to Vercel and create a Preview Deployment from branch `redesign/huddid-v2`. Do not merge into `main` until the preview has been tested.
+## Connect the website
+1. Copy `assets/js/config.js.example` to `assets/js/config.js`.
+2. The example already contains this project's URL and public publishable key.
+3. `config.js` is ignored by Git; do not force-add it.
+4. Never place a service_role key or any secret key in browser JavaScript.
+
+## Create the first admin
+1. Register your account through `signup.html`.
+2. In Supabase SQL Editor, run this query after replacing the email with the email used at signup:
+
+```sql
+update public.profiles
+set role = 'admin'
+where id = (select id from auth.users where email = 'YOUR_EMAIL');
+```
+
+Public signups always receive the student role. Only promote the account you control.
+
+## Free-tier policy
+Keep the project on the Free plan. Do not enable paid compute, add-ons, paid branches, custom domains, or services that show a charge. Supabase may have free-tier usage limits; monitor usage in the dashboard.
+
+## Deploy preview
+Connect the GitHub repository to Vercel and create a Preview Deployment from branch `redesign/huddid-v2`. Test signup, login, course loading and admin permissions before merging into `main`.
 
 ## Current scope
 - Redesigned home, course outline, chord library and creator pages.
-- Account signup, login, logout and learner dashboard.
+- Signup, login, logout and learner dashboard code.
 - Supabase schema for profiles, lessons and progress.
 - Admin-only lesson creation screen.
 - Starter curriculum outline from beginner through professional.
 
-## Not finished yet
-- Full written lesson materials, embedded video/audio, interactive tuner/metronome and quizzes.
-- Lesson detail/player pages and progress UI.
-- Admin edit/delete/publish controls and analytics.
-- Live database connection and end-to-end testing require the owner's Supabase project URL/key and Vercel preview deployment.
+## Still to complete
+- Copy `config.js.example` to the ignored `config.js` in the deployed project or configure a safe build-time injection.
+- Verify browser connection, signup and login on a Vercel preview.
+- Build full lesson content, videos/audio, interactive tuner/metronome and quizzes.
+- Complete lesson detail/player and progress UI.
+- Add admin edit/delete/publish controls and analytics.
 
-No credentials are included in this repository.
+No service-role credentials are stored in this repository.
