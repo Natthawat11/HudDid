@@ -42,7 +42,7 @@
   };
   document.addEventListener("DOMContentLoaded", async()=>{
     const status=$("#backend-status");if(status)status.textContent=client?"ระบบสมาชิกเชื่อมต่อแล้ว":"โหมดตัวอย่าง: รอตั้งค่า Supabase";
-    const signup=$("#signup-form");if(signup)signup.addEventListener("submit",async e=>{e.preventDefault();try{await HudDid.signUp($("#name").value,$("#email").value,$("#password").value);message("สมัครสมาชิกเรียบร้อย หากเปิดยืนยันอีเมล โปรดตรวจกล่องจดหมาย");}catch(err){message(err.message,true);}});
+    const signup=$("#signup-form");if(signup)signup.addEventListener("submit",async e=>{e.preventDefault();try{await HudDid.signUp($("#email").value,$("#password").value,$("#name").value);message("สมัครสมาชิกเรียบร้อย หากเปิดยืนยันอีเมล โปรดตรวจกล่องจดหมาย");}catch(err){message(err.message,true);}});
     const login=$("#login-form");if(login)login.addEventListener("submit",async e=>{e.preventDefault();try{await HudDid.signIn($("#email").value,$("#password").value);location.href="dashboard.html";}catch(err){message(err.message,true);}});
     const logout=$("#logout");if(logout)logout.addEventListener("click",()=>HudDid.signOut());
     const dashboard=$("#dashboard");if(dashboard){
