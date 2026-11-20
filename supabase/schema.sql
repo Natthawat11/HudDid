@@ -44,13 +44,18 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created after insert on auth.users
 for each row execute procedure public.handle_new_user();
 
+-- SECURITY DEFINER helper avoids recursive RLS checks on the profiles table.
+create or replace function public.is_admin()
+returns boolean language sql stable security definer set search_path = public
+as $ select exists(select 1 from public.profiles where id = auth.uid() and role = 'admin') $;
+
 alter table public.profiles enable row level security;
 alter table public.lessons enable row level security;
 alter table public.lesson_progress enable row level security;
 
 drop policy if exists "profiles read self or admin" on public.profiles;
 create policy "profiles read self or admin" on public.profiles for select to authenticated
-using (id = (select auth.uid()) or exists(select 1 from public.profiles p where p.id=(select auth.uid()) and p.role='admin'));
+using (id = (select auth.uid()) or public.is_admin());
 
 drop policy if exists "lessons read published" on public.lessons;
 create policy "lessons read published" on public.lessons for select
