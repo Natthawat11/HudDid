@@ -35,6 +35,19 @@
       if (error) throw error;
       return data;
     },
+    async requestPasswordReset(email) {
+      requireClient();
+      const { error } = await client.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + "/reset-password.html"
+      });
+      if (error) throw error;
+    },
+    async updatePassword(password) {
+      requireClient();
+      const { data, error } = await client.auth.updateUser({ password });
+      if (error) throw error;
+      return data;
+    },
     async signOut() {
       if (client) {
         const { error } = await client.auth.signOut();
@@ -110,9 +123,52 @@
     const status = $("#backend-status");
     if (status) status.textContent = client ? "เชื่อมต่อระบบสมาชิกแล้ว" : "ยังไม่ได้เชื่อมต่อฐานข้อมูล";
     
+    document.addEventListener("click", (event) => {
+      const toggle = event.target.closest("[data-toggle-password]");
+      if (!toggle) return;
+      const input = document.getElementById(toggle.dataset.togglePassword);
+      if (!input) return;
+      const visible = input.type === "password";
+      input.type = visible ? "text" : "password";
+      toggle.textContent = visible ? "ซ่อน" : "แสดง";
+    });
+
+    const resetRequest = $("#reset-request-form");
+    resetRequest?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const submit = resetRequest.querySelector('[type="submit"]');
+      if (submit) submit.disabled = true;
+      try {
+        await HudDid.requestPasswordReset($("#email").value.trim());
+        message("ส่งลิงก์ตั้งรหัสผ่านใหม่แล้ว กรุณาตรวจอีเมลและโฟลเดอร์ Spam");
+      } catch (error) { message(error.message, true); }
+      finally { if (submit) submit.disabled = false; }
+    });
+
+    const resetForm = $("#reset-password-form");
+    resetForm?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if ($("#new-password").value !== $("#confirm-new-password").value) {
+        message("รหัสผ่านทั้งสองช่องไม่ตรงกัน", true);
+        return;
+      }
+      const submit = resetForm.querySelector('[type="submit"]');
+      if (submit) submit.disabled = true;
+      try {
+        await HudDid.updatePassword($("#new-password").value);
+        message("เปลี่ยนรหัสผ่านสำเร็จแล้ว");
+        resetForm.reset();
+      } catch (error) { message(error.message + " หากลิงก์หมดอายุ กรุณาขอลิงก์ใหม่", true); }
+      finally { if (submit) submit.disabled = false; }
+    });
+
     const signup = $("#signup-form");
     signup?.addEventListener("submit", async (event) => {
       event.preventDefault();
+      if ($("#password").value !== $("#confirm-password").value) {
+        message("รหัสผ่านทั้งสองช่องไม่ตรงกัน", true);
+        return;
+      }
       const submit = signup.querySelector('[type="submit"]');
       if (submit) submit.disabled = true;
       try {
@@ -133,6 +189,23 @@
       try {
         await HudDid.signIn($("#email").value.trim(), $("#password").value);
         location.href = "dashboard.html";
+      } catch (error) { message(error.message, true); }
+      finally { if (submit) submit.disabled = false; }
+    });
+
+    const changePassword = $("#change-password-form");
+    changePassword?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if ($("#new-password").value !== $("#confirm-new-password").value) {
+        message("รหัสผ่านทั้งสองช่องไม่ตรงกัน", true);
+        return;
+      }
+      const submit = changePassword.querySelector('[type="submit"]');
+      if (submit) submit.disabled = true;
+      try {
+        await HudDid.updatePassword($("#new-password").value);
+        message("เปลี่ยนรหัสผ่านสำเร็จแล้ว");
+        changePassword.reset();
       } catch (error) { message(error.message, true); }
       finally { if (submit) submit.disabled = false; }
     });
