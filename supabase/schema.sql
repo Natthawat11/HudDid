@@ -59,16 +59,16 @@ using (id = (select auth.uid()) or public.is_admin());
 
 drop policy if exists "lessons read published" on public.lessons;
 create policy "lessons read published" on public.lessons for select
-using (published = true or exists(select 1 from public.profiles p where p.id=(select auth.uid()) and p.role='admin'));
+using (published = true or public.is_admin());
 
 drop policy if exists "admins manage lessons" on public.lessons;
 create policy "admins manage lessons" on public.lessons for all to authenticated
-using (exists(select 1 from public.profiles p where p.id=(select auth.uid()) and p.role='admin'))
-with check (exists(select 1 from public.profiles p where p.id=(select auth.uid()) and p.role='admin'));
+using (public.is_admin())
+with check (public.is_admin());
 
 drop policy if exists "students read own progress" on public.lesson_progress;
 create policy "students read own progress" on public.lesson_progress for select to authenticated
-using (user_id=(select auth.uid()) or exists(select 1 from public.profiles p where p.id=(select auth.uid()) and p.role='admin'));
+using (user_id=(select auth.uid()) or public.is_admin());
 
 drop policy if exists "students write own progress" on public.lesson_progress;
 create policy "students write own progress" on public.lesson_progress for insert to authenticated
