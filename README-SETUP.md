@@ -18,10 +18,9 @@ The free-tier project has already been created and initialized:
 The initial schema and 12 course-outline records have been applied. RLS is enabled on all three public tables. Security advisor returned no findings after hardening the admin helper. Do not run the schema again unless intentionally rebuilding/updating the database.
 
 ## Connect the website
-1. Copy `assets/js/config.js.example` to `assets/js/config.js`.
-2. The example already contains this project's URL and public publishable key.
-3. `config.js` is ignored by Git; do not force-add it.
-4. Never place a service_role key or any secret key in browser JavaScript.
+1. The login, signup, dashboard and admin pages load `assets/js/config.js.example` directly.
+2. It already contains this project's URL and public publishable key; publishable keys are intended for browser use.
+3. Never place a service_role key or any secret key in browser JavaScript.
 
 ## Create the first admin
 1. Register your account through `signup.html`.
@@ -49,7 +48,6 @@ Connect the GitHub repository to Vercel and create a Preview Deployment from bra
 - Starter curriculum outline from beginner through professional.
 
 ## Still to complete
-- Copy `config.js.example` to the ignored `config.js` in the deployed project or configure a safe build-time injection.
 - Verify browser connection, signup and login on a Vercel preview.
 - Build full lesson content, videos/audio, interactive tuner/metronome and quizzes.
 - Complete lesson detail/player and progress UI.
